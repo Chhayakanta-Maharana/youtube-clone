@@ -6,6 +6,7 @@ import { useAuth } from "../context/AuthContext";
 import LoginModal from "./LoginModal";
 import CreateUploadModal from "./CreateUploadModal";
 import TeckyChat from "./TeckyChat";
+import UserAvatar from "./UserAvatar";
 import logo from "../assets/logo.png";
 
 const Navbar = ({ toggleSidebar }) => {
@@ -200,17 +201,12 @@ const Navbar = ({ toggleSidebar }) => {
                                         onClick={() => setIsAccountDropdownOpen(!isAccountDropdownOpen)}
                                         className="focus:outline-none"
                                     >
-                                        {user.avatar ? (
-                                            <img
-                                                src={user.avatar}
-                                                alt="Avatar"
-                                                className="w-8 h-8 rounded-full cursor-pointer border-2 border-transparent hover:border-[#00A3FF] transition-colors"
-                                            />
-                                        ) : (
-                                            <div className="w-8 h-8 rounded-full bg-[#00A3FF] text-white flex items-center justify-center font-bold text-sm cursor-pointer select-none ring-2 ring-transparent hover:ring-[#0077FF] transition-all">
-                                                {user.name ? user.name.charAt(0).toUpperCase() : "U"}
-                                            </div>
-                                        )}
+                                        <UserAvatar 
+                                            name={user.name} 
+                                            avatar={user.avatar} 
+                                            size="sm" 
+                                            className="cursor-pointer border-2 border-transparent hover:border-[#0077FF] transition-all" 
+                                        />
                                     </button>
 
                                     {isAccountDropdownOpen && (

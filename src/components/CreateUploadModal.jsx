@@ -57,14 +57,14 @@ const CreateUploadModal = ({ isOpen, onClose }) => {
 
     if (!isOpen) return null;
 
-    const stopCameraStream = () => {
+    function stopCameraStream() {
         if (streamRef.current) {
             streamRef.current.getTracks().forEach(track => track.stop());
             streamRef.current = null;
         }
         setCameraStream(null);
         if (timerRef.current) clearInterval(timerRef.current);
-    };
+    }
 
     const reset = () => {
         setMode("select");

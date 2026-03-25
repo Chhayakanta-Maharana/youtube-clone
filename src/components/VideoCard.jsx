@@ -1,8 +1,37 @@
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { CheckCircle } from "lucide-react";
+import { useAppData } from "../context/AppDataContext";
+import UserAvatar from "./UserAvatar";
 
 const VideoCard = ({ video, layout = "vertical" }) => {
     const navigate = useNavigate();
+    const { updateVideo, usersList } = useAppData();
+    const [duration, setDuration] = useState(video.duration || "0:00");
+
+    // Self-healing metadata: If duration is 0:00, extract it and update backend
+    useEffect(() => {
+        if ((!video.duration || video.duration === "0:00") && video.videoUrl) {
+            const vid = document.createElement("video");
+            vid.src = video.videoUrl;
+            vid.preload = "metadata";
+            vid.onloadedmetadata = () => {
+                const mins = Math.floor(vid.duration / 60);
+                const secs = Math.floor(vid.duration % 60);
+                const timeStr = `${mins}:${secs.toString().padStart(2, "0")}`;
+                setDuration(timeStr);
+                updateVideo({ ...video, duration: timeStr });
+            };
+        }
+    }, [video.id, video.videoUrl]);
+
+    // Aggressive Profile Sync: Always derive latest info from the global usersList (Source of Truth)
+    const authorProfile = usersList?.find(u => 
+        (video.userId && u.id === video.userId) || 
+        (video.channelName && u.name === video.channelName && !video.channelName.startsWith("User-"))
+    );
+    const finalAvatar = authorProfile?.avatar || video.channelImage;
+    const finalName = authorProfile?.name || video.channelName;
 
     const isHorizontal = layout === "horizontal";
 
@@ -37,7 +66,7 @@ const VideoCard = ({ video, layout = "vertical" }) => {
                     />
                 )}
                 <span className="absolute bottom-1 right-1 bg-black/80 text-white text-xs px-1 rounded font-medium">
-                    {video.duration || "10:00"}
+                    {duration}
                 </span>
             </div>
 
@@ -45,17 +74,12 @@ const VideoCard = ({ video, layout = "vertical" }) => {
             <div className="flex gap-3 items-start flex-1 min-w-0">
                 {/* Avatar (Only for vertical layout) */}
                 {!isHorizontal && (
-                    video.channelImage ? (
-                        <img
-                            src={video.channelImage}
-                            alt={video.channelName}
-                            className="w-9 h-9 rounded-full mt-1 flex-shrink-0 object-cover"
-                        />
-                    ) : (
-                        <div className="w-9 h-9 rounded-full mt-1 flex-shrink-0 bg-purple-600 text-white flex items-center justify-center font-bold text-sm">
-                            {video.channelName ? video.channelName.charAt(0).toUpperCase() : "U"}
-                        </div>
-                    )
+                    <UserAvatar 
+                        name={finalName} 
+                        avatar={finalAvatar} 
+                        size="sm" 
+                        className="mt-1"
+                    />
                 )}
 
                 <div className="flex flex-col">
@@ -66,7 +90,7 @@ const VideoCard = ({ video, layout = "vertical" }) => {
                     <div className="text-gray-600 dark:text-gray-400 mt-1">
                         <div className="flex items-center gap-1 text-xs md:text-sm">
                             <span className="hover:text-gray-900 dark:hover:text-white transition-colors">
-                                {video.channel || video.channelName}
+                                {finalName}
                             </span>
                             {video.verified && <CheckCircle size={12} className="text-gray-600 dark:text-gray-400" />}
                         </div>

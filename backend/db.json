@@ -1,0 +1,29 @@
+{
+  "videos": [
+    {
+      "id": "1774438457552",
+      "title": "Recording 5:04:14 PM",
+      "description": "",
+      "isShorts": false,
+      "duration": "0:00",
+      "thumbnail": "",
+      "videoUrl": "https://youtube-clone-videos-123.s3.amazonaws.com/videos/84286438-9051-7056-3014-8ba519242b48/1774438455450-recorded-1774438454416.webm",
+      "channelName": "Chhaya",
+      "channelImage": "",
+      "views": "1",
+      "likes": 0,
+      "dislikes": 0,
+      "likedBy": [],
+      "dislikedBy": [],
+      "viewedBy": [
+        "84286438-9051-7056-3014-8ba519242b48"
+      ],
+      "comments": [],
+      "subscribers": "1",
+      "userId": "84286438-9051-7056-3014-8ba519242b48",
+      "verified": false,
+      "timestamp": "Just now"
+    }
+  ],
+  "users": []
+}

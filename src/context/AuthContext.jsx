@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useEffect } from "react";
 import { loginUser } from "../auth/login";
 import { signupUser, confirmUser } from "../auth/signup";
+import { requestPasswordReset, confirmPasswordReset } from "../auth/forgotPassword";
 import { userPool } from "../auth/cognitoConfig";
 import { jwtDecode } from "jwt-decode";
 
@@ -11,6 +12,25 @@ export const useAuth = () => useContext(AuthContext);
 export const AuthProvider = ({ children }) => {
     const [user, setUser] = useState(null);
     const [loading, setLoading] = useState(true);
+
+    const syncProfile = async (userData) => {
+        if (!userData?.id) return;
+        try {
+            await fetch("http://localhost:5000/api/users", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    id: userData.id,
+                    name: userData.name,
+                    avatar: userData.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${userData.name}`
+                })
+            });
+        } catch (e) { console.warn("Profile sync failed", e); }
+    };
+
+    useEffect(() => {
+        if (user) syncProfile(user);
+    }, [user?.id, user?.name]);
 
     useEffect(() => {
         // Handle Google Auth redirect hash
@@ -34,6 +54,7 @@ export const AuthProvider = ({ children }) => {
 
         try {
             const cognitoUser = userPool.getCurrentUser();
+            let baseUser = null;
 
             if (!cognitoUser) {
                 // Check local storage for Google IdToken
@@ -41,55 +62,57 @@ export const AuthProvider = ({ children }) => {
                 if (storedToken) {
                     try {
                         const payload = jwtDecode(storedToken);
-                        // Check if token is not expired
                         if (payload.exp * 1000 > Date.now()) {
-                            setUser({
+                            baseUser = {
                                 id: payload.sub || payload.email,
                                 email: payload.email,
                                 name: payload.name || payload.email,
                                 subscriptionTier: "free"
-                            });
-                            setLoading(false);
-                            return;
+                            };
                         } else {
                             localStorage.removeItem("idToken");
                         }
                     } catch (e) {
-                        console.error("Failed to parse local stored token", e);
                         localStorage.removeItem("idToken");
                     }
                 }
+            } else {
+                const sessionPromise = new Promise((resolve, reject) => {
+                    cognitoUser.getSession((err, session) => {
+                        if (err) reject(err);
+                        else resolve(session);
+                    });
+                });
 
-                setUser(null);
-                setLoading(false);
-                return;
+                const result = await Promise.race([sessionPromise, timeoutPromise]);
+                if (result !== 'TIMEOUT' && result && result.isValid()) {
+                    baseUser = {
+                        id: cognitoUser.getUsername(),
+                        email: result.getIdToken().payload.email,
+                        name: result.getIdToken().payload.name || cognitoUser.getUsername(),
+                        subscriptionTier: "free"
+                    };
+                }
             }
 
-            const sessionPromise = new Promise((resolve, reject) => {
-                cognitoUser.getSession((err, session) => {
-                    if (err) reject(err);
-                    else resolve(session);
-                });
-            });
-
-            // Race between session fetch and timeout
-            const result = await Promise.race([sessionPromise, timeoutPromise]);
-
-            if (result === 'TIMEOUT') {
-                console.warn("Auth check timed out, assuming unauthenticated.");
-                setUser(null);
-            } else if (result && result.isValid()) {
-                setUser({
-                    id: cognitoUser.getUsername(),
-                    email: result.getIdToken().payload.email,
-                    name: result.getIdToken().payload.name || cognitoUser.getUsername(),
-                    subscriptionTier: "free" // Defaulting to free for now
-                });
+            if (baseUser) {
+                // 🔥 ENHANCEMENT: Fetch real profile from registry
+                try {
+                    const res = await fetch("http://localhost:5000/api/users");
+                    if (res.ok) {
+                        const users = await res.json();
+                        const reg = users.find(u => u.id === baseUser.id);
+                        if (reg) {
+                            baseUser.name = reg.name || baseUser.name;
+                            baseUser.avatar = reg.avatar || baseUser.avatar;
+                        }
+                    }
+                } catch (e) { console.warn("Registry fetch failed", e); }
+                setUser(baseUser);
             } else {
                 setUser(null);
             }
         } catch (error) {
-            console.log("Not signed in or error:", error);
             setUser(null);
         } finally {
             setLoading(false);
@@ -170,8 +193,11 @@ export const AuthProvider = ({ children }) => {
             login,
             signup,
             confirmUser: confirm,
+            requestPasswordReset,
+            confirmPasswordReset,
             loginWithGoogleCredential,
-            logout
+            logout,
+            syncProfile // 🔥 EXPORTED
         }}>
             {children}
         </AuthContext.Provider>
